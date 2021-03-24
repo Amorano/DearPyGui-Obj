@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from dearpygui import core as dpgcore
 from dearpygui_obj import (
@@ -20,8 +20,8 @@ if TYPE_CHECKING:
     ## Type Aliases
     ItemConfigData = Mapping[str, Any]  #: Alias for GUI item configuration data
 
-    GetValueFunc = Callable[['PyGuiWidget'], Any]
-    GetConfigFunc = Callable[['PyGuiWidget', Any], ItemConfigData]
+    GetValueFunc = Callable[['Widget'], Any]
+    GetConfigFunc = Callable[['Widget', Any], ItemConfigData]
 
 
 ## WIDGET WRAPPERS
@@ -44,7 +44,7 @@ class ConfigProperty:
         self.no_init = no_init
         self.__doc__ = doc
 
-    def __set_name__(self, owner: Type[PyGuiWidget], name: str):
+    def __set_name__(self, owner: Type[Widget], name: str):
         self.owner = owner
         self.name = name
 
@@ -52,50 +52,53 @@ class ConfigProperty:
             self.key = name
 
         if not self.__doc__:
-            self.__doc__ = f"Read or modify the '{self.key}' config field."
+            self.__doc__ = f"Read or modify the '{self.key}' config property."
 
-    def __get__(self, instance: Optional[PyGuiWidget], owner: Type[PyGuiWidget]) -> Any:
+    def __get__(self, instance: Optional[Widget], owner: Type[Widget]) -> Any:
         if instance is None:
             return self
-        return self.get_value(instance)
+        return self.fvalue(instance)
 
-    def __set__(self, instance: PyGuiWidget, value: Any) -> None:
-        config = self.get_config(instance, value)
+    def __set__(self, instance: Widget, value: Any) -> None:
+        config = self.fconfig(instance, value)
         dpgcore.configure_item(instance.id, **config)
 
-    def __call__(self, get_value: GetValueFunc):
+    def __call__(self, fvalue: GetValueFunc):
         """Allows the ConfigProperty itself to be used as a decorator equivalent to :attr:`getvalue`."""
-        return self.getvalue(get_value)
+        return self.getvalue(fvalue)
 
-    def getvalue(self, get_value: GetValueFunc):
-        self.get_value = get_value
-        self.__doc__ = get_value.__doc__ # use the docstring of the getter, the same way property() works
+    def getvalue(self, fvalue: GetValueFunc):
+        self.fvalue = fvalue
+        self.__doc__ = fvalue.__doc__ # use the docstring of the getter, the same way property() works
         return self
 
-    def getconfig(self, get_config: GetConfigFunc):
-        self.get_config = get_config
+    def getconfig(self, fconfig: GetConfigFunc):
+        self.fconfig = fconfig
         return self
 
     ## default implementations
-    get_value: GetValueFunc
-    get_config: GetConfigFunc
+    fvalue: GetValueFunc
+    fconfig: GetConfigFunc
 
-    def get_value(self, instance: PyGuiWidget) -> Any:
+    def fvalue(self, instance: Widget) -> Any:
         return dpgcore.get_item_configuration(instance.id)[self.key]
 
-    def get_config(self, instance: PyGuiWidget, value: Any) -> ItemConfigData:
+    def fconfig(self, instance: Widget, value: Any) -> ItemConfigData:
         return {self.key : value}
 
 
 
-class PyGuiWidget(ABC):
+class Widget(ABC):
     """This is the abstract base class for all GUI item wrapper objects.
 
     Keyword arguments passed to ``__init__`` will be used to set the initial values of any
-    :class:`.ConfigProperty` descriptors added with :meth:`add_config_property`. Any left over
-    keywords will be passed to the :meth:`_setup_add_widget` method to be given to DPG.
+    config properties that belong to the class. Any left over keywords will be passed to the
+    :meth:`_setup_add_widget` method to be given to DPG.
 
-    It's important that PyGuiWidget and subclasses can be instantiated with only the **name_id**
+    You can find out what config properties there are using the
+    :meth:`get_config_properties` method.
+
+    It's important that any subclasses can be instantiated with only the **name_id**
     argument being passed to ``__init__``. This allows :func:`.get_item_by_id` to work.
 
     Parameters:
@@ -131,7 +134,7 @@ class PyGuiWidget(ABC):
         if dpgcore.does_item_exist(self.id):
             self._setup_preexisting()
         else:
-            # at no point should a PyGuiWidget object exist for an item that hasn't
+            # at no point should a Widget object exist for an item that hasn't
             # actually been added, so if the item doesn't exist we need to add it now.
 
             # labels are handled specially because they are very common
@@ -152,7 +155,7 @@ class PyGuiWidget(ABC):
 
             config_data = {}
             for prop, value in config_args.items():
-                config_data.update(prop.get_config(self, value))
+                config_data.update(prop.fconfig(self, value))
 
             dpgcore.configure_item(self.id, **config_data)
 
@@ -163,6 +166,12 @@ class PyGuiWidget(ABC):
 
     def __str__(self) -> str:
         return self.id
+
+    def __eq__(self, other: Any) -> bool:
+        """Two wrapper objects are considered equal if their IDs are equal."""
+        if isinstance(other, Widget):
+            return self.id == other.id
+        return super().__eq__(other)
 
     ## Overrides
 
@@ -223,7 +232,7 @@ class PyGuiWidget(ABC):
     def callback_data(self, data: Any) -> None:
         dpgcore.set_item_callback_data(self.id, data)
 
-    def callback(self, *, data: Optional[Any] = None) -> Callable:
+    def callback(self, _cb: PyGuiCallback = None, *, data: Optional[Any] = None) -> Callable:
         """A decorator that sets the item's callback, and optionally, the callback data.
 
         For example:
@@ -233,39 +242,25 @@ class PyGuiWidget(ABC):
             with Window('Example Window'):
                 button = Button('Callback Button')
 
+                # don't need callback data!
+                @button.callback
+                def callback(sender):
+                    ...
+
+                # if data is a callable, it is invoked each time the callback fires
+                # and the result is supplied to the callback.
                 @button.callback(data='this could also be a callable')
                 def callback(sender, data):
                     ...
+
         """
         def decorator(callback: PyGuiCallback) -> PyGuiCallback:
             dpgcore.set_item_callback(self.id, wrap_callback(callback), callback_data=data)
             return callback
+
+        if _cb is not None:  # in case people forget the "()"
+            return decorator(_cb)
         return decorator
-
-    ## Parent/Children
-
-    def get_parent(self) -> Optional[PyGuiWidget]:
-        """Get this item's parent."""
-        parent_id = dpgcore.get_item_parent(self.id)
-        if not parent_id:
-            return None
-        return get_item_by_id(parent_id)
-
-    def set_parent(self, parent: PyGuiWidget) -> None:
-        """Re-parent the item, moving it."""
-        dpgcore.move_item(self.id, parent=parent.id)
-
-    def move_up(self) -> None:
-        """Move the item up within its parent, if possible."""
-        dpgcore.move_item_up(self.id)
-
-    def move_down(self) -> None:
-        """Move the item down within its parent, if possible."""
-        dpgcore.move_item_down(self.id)
-
-    def move_item_before(self, other: PyGuiWidget) -> None:
-        """Attempt to place the item before another item, re-parenting it if necessary."""
-        dpgcore.move_item(self.id, parent=other.get_parent().id, before=other.id)
 
     ## Containers
 
@@ -273,7 +268,7 @@ class PyGuiWidget(ABC):
         """Checks if DPG considers this item to be a container."""
         return dpgcore.is_item_container(self.id)
 
-    def iter_children(self) -> Iterable[PyGuiWidget]:
+    def iter_children(self) -> Iterable[ItemWidget]:
         """Iterates all of the item's children."""
         children = dpgcore.get_item_children(self.id)
         if not children:
@@ -281,42 +276,16 @@ class PyGuiWidget(ABC):
         for child in children:
             yield get_item_by_id(child)
 
-    def add_child(self, child: PyGuiWidget) -> None:
+    def add_child(self, child: ItemWidget) -> None:
         """Alternative to :meth:`set_parent`."""
         dpgcore.move_item(child.id, parent=self.id)
 
-    def create_child(self, child_type: Type[PyGuiWidget], *args, **kwargs) -> PyGuiWidget:
-        """Add a child item after the container has already been setup.
-
-        Not all child types are supported. Which ones are is entirely up to DearPyGui."""
-        return child_type(*args, parent=self.id, **kwargs)
-
-    ## Data and Values
-
-    @ConfigProperty(key='source')
-    def data_source(self) -> DataValue:
-        """Get the :class:`.GuiData` used as the data source, if any."""
-        source_id = self.get_config().get('source') or self.id
-        return DataValue(source_id)
-
-    @data_source.getconfig
-    def data_source(self, source: Optional[Any]):
-        # accept plain string in addition to GuiData
-        return {'source' : str(source) if source is not None else ''}
-
-    @property
-    def value(self) -> Any:
-        # get_value(self.id) doesn't work if a data source has been set,
-        # so we have to go through data_source to get the widget's value
-        return self.data_source.value
-
-    @value.setter
-    def value(self, value: Any) -> None:
-        self.data_source.value = value
-
     ## Other properties and status
 
+    #: The content of the tooltip that is shown when the widget is hovered.
+    #: To remove the tooltip, assign an empty string.
     tooltip: str = ConfigProperty(key='tip')
+
     enabled: bool = ConfigProperty()  #: If not enabled, display greyed out text and disable interaction.
 
     @property
@@ -329,6 +298,7 @@ class PyGuiWidget(ABC):
     width: int = ConfigProperty()
     height: int = ConfigProperty()
 
+    size: Tuple[float, float]
     @ConfigProperty()
     def size(self) -> Tuple[float, float]:
         """The item's current size as ``(width, height)``."""
@@ -384,7 +354,131 @@ class PyGuiWidget(ABC):
         return dpgcore.is_item_deactivated_after_edit(self.id)
 
 
-class DefaultWidget(PyGuiWidget):
+# noinspection PyAbstractClass
+class ItemWidget(ABC):
+    """Mixin class for all widgets that can belong to containers.
+
+    This mixin class is used to mark :class:`.Widget` subtypes that can belong to a container
+    (currently this includes all DPG widgets except for :class:`.Window`).
+    It provides its subtypes with methods to move widgets between different containers (re-parent)
+    or within their own container.
+
+    Typically when widgets are instantiated they are added to a container based on context.
+    This behavior is a result of DPG's container stack and it makes it simple to create
+    declarative-style GUIs.
+
+    If you need to add a new widget directly to a specific parent container, or just prefer a more
+    OOP-style of specifying a widget's parent, you can use the :meth:`add_to` and :meth:`add_before`
+    constructor methods."""
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        ...
+
+    @abstractmethod
+    def __init__(self, *args, parent: str, **kwargs):
+        ...
+
+    def get_parent(self) -> Optional[Widget]:
+        """Get this item's parent."""
+        parent_id = dpgcore.get_item_parent(self.id)
+        if not parent_id:
+            return None
+        return get_item_by_id(parent_id)
+
+    def set_parent(self, parent: Widget) -> None:
+        """Re-parent the item, moving it."""
+        dpgcore.move_item(self.id, parent=parent.id)
+
+    def move_up(self) -> None:
+        """Move the item up within its parent, if possible."""
+        dpgcore.move_item_up(self.id)
+
+    def move_down(self) -> None:
+        """Move the item down within its parent, if possible."""
+        dpgcore.move_item_down(self.id)
+
+    def move_item_before(self, other: ItemWidget) -> None:
+        """Attempt to place the item before another item, re-parenting it if necessary."""
+        dpgcore.move_item(self.id, parent=other.get_parent().id, before=other.id)
+
+    @classmethod
+    def add_to(cls, parent: Widget, *args: Any, **kwargs: Any) -> Any:
+        """Create a widget and add it to the given *parent* instead of using context.
+
+        Returns:
+            the newly created widget.
+        """
+        return cls(*args, parent=parent.id, **kwargs)
+
+    @classmethod
+    def insert_before(cls, sibling: ItemWidget, *args: Any, **kwargs: Any) -> Any:
+        """Create a widget and insert it before the given *sibling* widget.
+
+        Returns:
+            the newly created widget.
+        """
+        return cls(*args, parent=sibling.get_parent().id, before=sibling.id, **kwargs)
+
+
+_TValue = TypeVar('_TValue')
+
+class ValueWidget(ABC, Generic[_TValue]):
+    """Mixin for all widgets that use the DPG value system.
+
+    The use of the :attr:`value` property depends on the specific kind of widget.
+
+    ValueWidgets can be linked together or to a :class:`.DataValue` by setting the
+    :attr:`data_source` config property.
+    """
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        ...
+
+    @abstractmethod
+    def get_config(self) -> ItemConfigData:
+        ...
+
+    data_source: DataValue
+    @ConfigProperty(key='source')
+    def data_source(self) -> DataValue:
+        """Get or set the data source.
+
+        When retrieved, a :class:`.DataValue` referencing the data source will be produced.
+
+        If a widget object or a :class:`.DataValue` is assigned as the data source, this widget will
+        become linked to the provided source. Otherwise, if ``None`` is assigned, this widget will
+        have its own value."""
+        source_id = self.get_config().get('source') or self.id
+        return DataValue(source_id)
+
+    @data_source.getconfig
+    def data_source(self, source: Optional[Any]):
+        # accept plain string in addition to GuiData
+        return {'source' : str(source) if source is not None else ''}
+
+    value: _TValue
+    @property
+    def value(self) -> _TValue:
+        """Get or set the widget's value."""
+        return self._get_value()
+
+    @value.setter
+    def value(self, v: _TValue) -> None:
+        self._set_value(v)
+
+    # these are here to make it easier for subclasses to override the value property.
+    def _get_value(self) -> _TValue:
+        return self.data_source.value
+
+    def _set_value(self, v: _TValue) -> None:
+        self.data_source.value = v
+
+
+class DefaultWidget(Widget, ItemWidget):
     """Fallback type used when getting a widget that does not have a wrapper class.
 
     When :func:`.get_item_by_id` is called to retrieve an item whose widget type does not

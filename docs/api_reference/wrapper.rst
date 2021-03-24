@@ -1,25 +1,30 @@
-Wrapper Object System
-=====================
+Widget Objects
+==============
 
 .. automodule:: dearpygui_obj.wrapper.widget
+
+.. contents:: Contents
+    :local:
 
 .. rubric:: Summary
 
 .. autosummary:: 
     :nosignatures:
 
-    PyGuiWidget
+    Widget
+    ItemWidget
     DefaultWidget
     ConfigProperty
 
-PyGuiWidget
------------
+Widget
+------
 
-.. autoclass:: PyGuiWidget
+.. autoclass:: Widget
     :members:
     :undoc-members:
+    :special-members: __eq__
 
-    **Item Existence**
+    **ID and Existence**
 
     .. autosummary::
         :nosignatures:
@@ -38,17 +43,6 @@ PyGuiWidget
         set_callback
         callback_data
 
-    **Parent/Children**
-
-    .. autosummary::
-        :nosignatures:
-
-        get_parent
-        set_parent
-        move_up
-        move_down
-        move_item_before
-
     **Containers**
 
     .. autosummary::
@@ -57,15 +51,6 @@ PyGuiWidget
         is_container
         iter_children
         add_child
-        create_child
-
-    **Data and Values**
-
-    .. autosummary::
-        :nosignatures:
-
-        data_source
-        value
 
     **Other Properties and Status**
 
@@ -84,7 +69,6 @@ PyGuiWidget
         is_hovered
         is_focused
 
-
     .. automethod:: _setup_add_widget
     .. automethod:: _setup_preexisting
 
@@ -93,6 +77,21 @@ PyGuiWidget
     :members:
     :undoc-members:
 
+
+ItemWidget
+----------
+
+.. autoclass:: ItemWidget
+    :members:
+    :undoc-members:
+
+
+ValueWidget
+-----------
+
+.. autoclass:: ValueWidget
+    :members:
+    :undoc-members:
 
 ConfigProperty
 --------------

@@ -13,5 +13,7 @@ API Reference
    input
    layout
    containers
+   plots
    drawing
+   nodes
    devtools

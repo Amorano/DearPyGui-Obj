@@ -3,8 +3,8 @@ Data
 
 .. automodule:: dearpygui_obj.data
 
-.. .. contents:: Contents
-..     :local:
+.. contents:: Contents
+    :local:
 
 .. rubric:: Summary
 
@@ -13,6 +13,8 @@ Data
 
     color_from_rgba8
     color_from_hex
+    dpg_import_color
+    dpg_export_color
     ColorRGBA
     Pos2D
     DrawPos
@@ -24,13 +26,23 @@ Colors
 
 .. autofunction:: color_from_hex
 
+.. autofunction:: dpg_import_color
+
+.. autofunction:: dpg_export_color
+
 .. autoclass:: ColorRGBA
     :members:
     :undoc-members:
 
 
-Draw Coords
------------
+Predefined Colors
+^^^^^^^^^^^^^^^^^
+
+A selection of predefined color values are available from the :mod:`dearpygui_obj.colors` module.
+
+
+DrawPos
+-------
 
 .. autodata:: Pos2D
 

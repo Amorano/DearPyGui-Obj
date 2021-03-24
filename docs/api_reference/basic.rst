@@ -23,6 +23,7 @@ Basic Widgets
     ListBox
     Combo
     ComboHeightMode
+    SimplePlot
 
 Basic Content
 -------------
@@ -31,9 +32,13 @@ Basic Content
     :members:
     :undoc-members:
 
+    .. autoattribute:: value
+
 .. autoclass:: LabelText
     :members:
     :undoc-members:
+
+    .. autoattribute:: value
 
 .. autoclass:: Separator
     :members:
@@ -42,6 +47,8 @@ Basic Content
 .. autoclass:: ProgressBar
     :members:
     :undoc-members:
+
+    .. autoattribute:: value
 
 Button-Like
 -----------
@@ -58,9 +65,13 @@ Button-Like
     :members:
     :undoc-members:
 
+    .. autoattribute:: value
+
 .. autoclass:: Selectable
     :members:
     :undoc-members:
+
+    .. autoattribute:: value
 
 Selection List
 --------------
@@ -68,19 +79,28 @@ Selection List
 .. autoclass:: RadioButtons
     :members:
     :undoc-members:
-    :special-members: __len__, __getitem__, __setitem__, __delitem__
+
+    .. autoattribute:: value
 
 .. autoclass:: ListBox
     :members:
     :undoc-members:
-    :special-members: __len__, __getitem__, __setitem__, __delitem__
+
+    .. autoattribute:: value
 
 .. autoclass:: Combo
     :members:
     :undoc-members:
-    :special-members: __len__, __getitem__, __setitem__, __delitem__
+
+    .. autoattribute:: value
 
 .. autoclass:: ComboHeightMode
     :members:
     :undoc-members:
 
+Simple Plots
+------------
+
+.. autoclass:: SimplePlot
+    :members:
+    :undoc-members:

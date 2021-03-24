@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING
 
 from dearpygui import core as dpgcore
 
 from dearpygui_obj import _generate_id
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Mapping
+    from typing import Any, Optional, Type, Callable, Mapping
     from dearpygui_obj.drawing import DrawingCanvas
 
     DrawConfigData = Mapping[str, Any]
@@ -44,33 +44,33 @@ class DrawProperty:
     def __get__(self, instance: Optional[DrawCommand], owner: Type[DrawCommand]) -> Any:
         if instance is None:
             return self
-        return self.get_value(instance)
+        return self.fvalue(instance)
 
     def __set__(self, instance: DrawCommand, value: Any) -> None:
-        config = self.get_config(instance, value)
+        config = self.fconfig(instance, value)
         dpgcore.modify_draw_command(instance.canvas.id, instance.id, **config)
 
-    def __call__(self, get_value: GetDrawValueFunc):
+    def __call__(self, fvalue: GetDrawValueFunc):
         """Allows the ConfigProperty itself to be used as a decorator equivalent to :attr:`getvalue`."""
-        return self.getvalue(get_value)
+        return self.getvalue(fvalue)
 
-    def getvalue(self, get_value: GetDrawValueFunc):
-        self.get_value = get_value
-        self.__doc__ = get_value.__doc__ # use the docstring of the getter, the same way property() works
+    def getvalue(self, fvalue: GetDrawValueFunc):
+        self.fvalue = fvalue
+        self.__doc__ = fvalue.__doc__ # use the docstring of the getter, the same way property() works
         return self
 
-    def getconfig(self, get_config: GetDrawConfigFunc):
-        self.get_config = get_config
+    def getconfig(self, fconfig: GetDrawConfigFunc):
+        self.fconfig = fconfig
         return self
 
     ## default implementations
-    get_value: GetDrawValueFunc
-    get_config: GetDrawConfigFunc
+    fvalue: GetDrawValueFunc
+    fconfig: GetDrawConfigFunc
 
-    def get_value(self, instance: DrawCommand) -> Any:
+    def fvalue(self, instance: DrawCommand) -> Any:
         return dpgcore.get_draw_command(instance.canvas.id, instance.id)[self.key]
 
-    def get_config(self, instance: DrawCommand, value: Any) -> DrawConfigData:
+    def fconfig(self, instance: DrawCommand, value: Any) -> DrawConfigData:
         return {self.key : value}
 
 
@@ -78,10 +78,11 @@ class DrawCommand(ABC):
     """Base class for drawing commands."""
 
     @classmethod
-    def _draw_properties(cls) -> Mapping[str, DrawProperty]:
+    def _get_draw_properties(cls) -> Mapping[str, DrawProperty]:
         draw_properties = cls.__dict__.get('_draw_properties')
         if draw_properties is None:
             draw_properties = {}
+            # must match order in annotations
             for name in cls.__annotations__:
                 value = getattr(cls, name)
                 if isinstance(value, DrawProperty):
@@ -96,21 +97,27 @@ class DrawCommand(ABC):
         else:
             self._tag_id = _generate_id(self)
 
-        props = self._draw_properties()
+        props = self._get_draw_properties()
         draw_data = {}
         for prop, value in zip(props.values(), args):
-            draw_data.update(prop.get_config(self, value))
+            draw_data.update(prop.fconfig(self, value))
 
         for name, value in kwargs.items():
             prop = props.get(name)
             if prop is not None:
-                draw_data.update(prop.get_config(self, value))
+                draw_data.update(prop.fconfig(self, value))
 
         self._draw_internal(draw_data)
 
     @abstractmethod
     def _draw_internal(self, draw_args: Mapping[str, Any]) -> None:
         """This should execute the draw using DearPyGui's ``draw_*()`` functions."""
+
+    def __eq__(self, other: Any) -> bool:
+        """Two commands are equal if they share the same canvas and have the same tag."""
+        if isinstance(other, DrawCommand):
+            return self.canvas == other.canvas and self.id == other.id
+        return super().__eq__(other)
 
     @property
     def id(self) -> str:

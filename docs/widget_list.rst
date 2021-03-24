@@ -30,6 +30,7 @@ Most widgets can also be imported from the :mod:`dearpygui_obj.widgets` module.
     dearpygui_obj.basic.RadioButtons
     dearpygui_obj.basic.ListBox
     dearpygui_obj.basic.Combo
+    dearpygui_obj.basic.SimplePlot
 
 .. rubric:: Input Boxes
 
@@ -70,6 +71,7 @@ Most widgets can also be imported from the :mod:`dearpygui_obj.widgets` module.
     dearpygui_obj.input.ColorEdit
     dearpygui_obj.input.ColorPicker
 
+
 .. rubric:: Layout
 
 .. autosummary:: 
@@ -84,6 +86,7 @@ Most widgets can also be imported from the :mod:`dearpygui_obj.widgets` module.
     dearpygui_obj.layout.ChildView
     dearpygui_obj.layout.Dummy
 
+
 .. rubric:: Containers
 
 .. autosummary:: 
@@ -91,8 +94,34 @@ Most widgets can also be imported from the :mod:`dearpygui_obj.widgets` module.
 
     dearpygui_obj.containers.TreeNode
     dearpygui_obj.containers.TreeNodeHeader
+    dearpygui_obj.containers.TabBar
+    dearpygui_obj.containers.TabItem
+    dearpygui_obj.containers.TabButton
     dearpygui_obj.containers.Menu
     dearpygui_obj.containers.MenuItem
+    dearpygui_obj.containers.Popup
+
+
+.. rubric:: Rich Plots
+
+.. autosummary:: 
+    :nosignatures:
+
+    dearpygui_obj.plots.Plot
+    dearpygui_obj.plots.dataseries.AreaSeries
+    dearpygui_obj.plots.dataseries.BarSeries
+    dearpygui_obj.plots.dataseries.CandleSeries
+    dearpygui_obj.plots.dataseries.ErrorSeries
+    dearpygui_obj.plots.dataseries.HeatSeries
+    dearpygui_obj.plots.dataseries.HLineSeries
+    dearpygui_obj.plots.dataseries.LineSeries
+    dearpygui_obj.plots.dataseries.PieSeries
+    dearpygui_obj.plots.dataseries.ScatterSeries
+    dearpygui_obj.plots.dataseries.SingleShadeSeries
+    dearpygui_obj.plots.dataseries.DoubleShadeSeries
+    dearpygui_obj.plots.dataseries.StairSeries
+    dearpygui_obj.plots.dataseries.StemSeries
+
 
 .. rubric:: Drawing
 
@@ -100,6 +129,17 @@ Most widgets can also be imported from the :mod:`dearpygui_obj.widgets` module.
     :nosignatures:
 
     dearpygui_obj.drawing.DrawingCanvas
+
+
+.. rubric:: Node Editor
+
+.. autosummary:: 
+    :nosignatures:
+
+    dearpygui_obj.node.NodeEditor
+    dearpygui_obj.node.Node
+    dearpygui_obj.node.NodeAttribute
+
 
 .. rubric:: Developer Tool Windows
 

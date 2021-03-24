@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import dearpygui.core as dpgcore
 from dearpygui_obj import _register_item_type, wrap_callback
-from dearpygui_obj.wrapper.widget import PyGuiWidget, ConfigProperty
+from dearpygui_obj.wrapper.widget import Widget, ItemWidget, ConfigProperty
 
 if TYPE_CHECKING:
     from typing import Optional, Tuple, Callable
@@ -76,7 +76,7 @@ class MainWindow:
 
 
 @_register_item_type('mvAppItemType::Window')
-class Window(PyGuiWidget):
+class Window(Widget):
     """Creates a new window."""
 
     label: str = ConfigProperty()
@@ -101,6 +101,7 @@ class Window(PyGuiWidget):
     #: Allow horizontal scrollbar to appear.
     horizontal_scrollbar: bool = ConfigProperty()
 
+    pos: Tuple[int, int]
     @ConfigProperty()
     def pos(self) -> Tuple[int, int]:
         """Get or set (x_pos, y_pos) as a tuple."""
@@ -120,8 +121,7 @@ class Window(PyGuiWidget):
         super().__init__(label=label, name_id=name_id, **config)
 
     def _setup_add_widget(self, dpg_args) -> None:
-        on_close = wrap_callback(self._on_close)
-        dpgcore.add_window(self.id, on_close=on_close, **dpg_args)
+        dpgcore.add_window(self.id, on_close=self._on_close, **dpg_args)
 
     def __enter__(self) -> Window:
         return self
@@ -130,13 +130,15 @@ class Window(PyGuiWidget):
         dpgcore.end()
 
     ## workaround for the fact that you can't set the on_close callback in DPG
-    _on_close_callback: Optional[PyGuiCallback] = None
+    _on_close_callback: Optional[Callable] = None
     def _on_close(self, sender, data) -> None:
         if self._on_close_callback is not None:
             self._on_close_callback(sender, data)
 
-    def on_close(self, callback: PyGuiCallback) -> Callable:
+    def on_close(self, callback: Optional[PyGuiCallback]) -> Callable:
         """Set on_close callback, can be used as a decorator."""
+        if callback is not None:
+            callback = wrap_callback(callback)
         self._on_close_callback = callback
         return callback
 
@@ -145,10 +147,11 @@ class Window(PyGuiWidget):
         dpgcore.set_resize_callback(wrap_callback(callback), handler=self.id)
         return callback
 
+
 ## Menu Bars and Menus
 
 @_register_item_type('mvAppItemType::MenuBar')
-class MenuBar(PyGuiWidget):
+class MenuBar(Widget, ItemWidget):
     """A menu bar that can be added to a :class:`.Window`."""
 
     def __init__(self, *, name_id: str = None, **config):
